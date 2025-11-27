@@ -66,6 +66,12 @@ GO
 -- =============================================
 -- Get all expenses with optional filtering
 -- =============================================
+-- =============================================
+-- Get all expenses with optional filtering
+-- Note: @SearchTerm is safe from SQL injection as it's a parameterized
+-- stored procedure parameter. The application uses SqlCommand with 
+-- SqlParameter which ensures proper escaping.
+-- =============================================
 CREATE OR ALTER PROCEDURE [dbo].[usp_GetExpenses]
     @UserId INT = NULL,
     @StatusId INT = NULL,
@@ -144,6 +150,9 @@ GO
 
 -- =============================================
 -- Get pending expenses for approval
+-- Note: @SearchTerm is safe from SQL injection as it's a parameterized
+-- stored procedure parameter. The application uses SqlCommand with 
+-- SqlParameter which ensures proper escaping.
 -- =============================================
 CREATE OR ALTER PROCEDURE [dbo].[usp_GetPendingExpenses]
     @SearchTerm NVARCHAR(100) = NULL
@@ -193,6 +202,8 @@ BEGIN
     DECLARE @DraftStatusId INT;
     SELECT @DraftStatusId = StatusId FROM dbo.ExpenseStatus WHERE StatusName = 'Draft';
     
+    -- Note: Currency is currently fixed to GBP as per business requirement
+    -- This could be parameterized in future for multi-currency support
     INSERT INTO dbo.Expenses (UserId, CategoryId, StatusId, AmountMinor, Currency, ExpenseDate, Description, ReceiptFile, CreatedAt)
     VALUES (@UserId, @CategoryId, @DraftStatusId, @AmountMinor, 'GBP', @ExpenseDate, @Description, @ReceiptFile, SYSUTCDATETIME());
     
@@ -219,7 +230,7 @@ BEGIN
         AmountMinor = @AmountMinor,
         ExpenseDate = @ExpenseDate,
         Description = @Description,
-        ReceiptFile = ISNULL(@ReceiptFile, ReceiptFile)
+        ReceiptFile = NULLIF(@ReceiptFile, '')  -- Treat empty string as NULL for consistent behavior
     WHERE ExpenseId = @ExpenseId;
     
     SELECT @@ROWCOUNT AS RowsAffected;

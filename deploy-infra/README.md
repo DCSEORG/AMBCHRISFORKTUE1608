@@ -18,6 +18,38 @@ az ad signed-in-user show --query id -o tsv
 az ad signed-in-user show --query userPrincipalName -o tsv
 ```
 
+## Deployment Order Considerations
+
+The deployment is organized in two phases to handle Azure resource dependencies correctly.
+
+### Phase 1: Infrastructure Deployment
+
+Resources must be deployed in this specific order (handled automatically by Bicep dependencies):
+
+1. **Managed Identity** - Created first as other resources depend on it
+2. **App Service** - Uses the managed identity for authentication
+3. **Azure SQL Server & Database** - Configured with Entra ID authentication
+4. **Azure OpenAI** (optional) - Needs managed identity for role assignment
+5. **Azure AI Search** (optional) - Needs managed identity for role assignment
+
+### Phase 2: Post-Deployment Configuration
+
+These steps must happen AFTER infrastructure deployment completes:
+
+1. **Wait 30 seconds** - Allow SQL Server to be fully ready
+2. **Configure SQL Firewall** - Add your IP for local script execution
+3. **Import Database Schema** - Using Python script with Azure AD auth
+4. **Configure Managed Identity Roles** - Grant db_datareader/db_datawriter
+5. **Create Stored Procedures** - Required by the application
+6. **Configure App Settings** (if GenAI) - OpenAI endpoint, deployment name
+
+### Why This Order Matters
+
+- **Bicep cannot configure app settings with GenAI endpoints** because the endpoints don't exist until after deployment
+- **SQL Server needs time to be fully ready** before accepting connections
+- **Managed Identity must exist before role assignments** can reference it
+- **Database schema must exist before stored procedures** can be created
+
 ## Deployment Steps
 
 ### Step 1: Set PowerShell Variables
@@ -132,3 +164,10 @@ The infrastructure includes:
 - **Azure SQL Database (Basic)**: Stores expense data with Entra ID authentication only
 - **Azure OpenAI (Optional)**: GPT-4o model for chat functionality
 - **Azure AI Search (Optional)**: For RAG pattern support
+
+## Bicep Guidelines
+
+- Use `uniqueString(resourceGroup().id)` for deterministic unique names
+- Do NOT use `utcNow()` in variable declarations (only allowed in parameter defaults)
+- All resource names must be lowercase to comply with Azure naming requirements
+- Use null-safe operators (`?.` and `??`) for conditional module outputs
