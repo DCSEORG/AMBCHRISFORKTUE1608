@@ -2,13 +2,42 @@
 
 This folder contains the Bicep templates for deploying the Expense Management System infrastructure to Azure.
 
+## Quick Start - Automated Deployment
+
+The easiest way to deploy is using the automated deployment script:
+
+```powershell
+# Basic deployment (without GenAI)
+.\deploy-infra\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -Location "uksouth"
+
+# Deployment with Azure OpenAI and AI Search
+.\deploy-infra\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -Location "uksouth" -DeployGenAI
+
+# Redeployment (skip database setup)
+.\deploy-infra\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -Location "uksouth" -DeployGenAI -SkipDatabaseSetup
+```
+
+The script automatically:
+- Gets your Azure AD credentials
+- Creates the resource group
+- Deploys all infrastructure via Bicep
+- Configures SQL Server firewall
+- Imports database schema
+- Sets up managed identity roles
+- Creates stored procedures
+- Configures App Service settings
+
 ## Prerequisites
 
 1. Azure CLI installed and logged in (`az login`)
 2. Appropriate Azure subscription permissions
-3. Your Azure AD Object ID and User Principal Name
+3. sqlcmd installed (`winget install sqlcmd`)
 
-## Getting Your Azure AD Information
+## Manual Deployment Steps
+
+If you prefer to deploy manually or need to troubleshoot, follow these steps:
+
+### Getting Your Azure AD Information
 
 ```powershell
 # Get your Object ID
