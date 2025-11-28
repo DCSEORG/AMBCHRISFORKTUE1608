@@ -22,6 +22,10 @@ prompt-019-chatui-deploy-file,
 prompt-011-azure-services-diagram,
 prompt-023-deployment-order-considerations
 
+Notes:
 
+- prompt-027-deployment-script creates the infrastructure deployment automation
+- prompt-005-deploy-app-code creates the application deployment automation
+- These two scripts work together via a deployment context file for seamless end-to-end deployment
 
-If the agent cant find the exact named matching file it shuld not try to make up any text or code and skip to the next one
+If the agent cannot find the exact named matching file it should not try to make up any text or code and skip to the next one.

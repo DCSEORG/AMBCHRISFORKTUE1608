@@ -6,17 +6,63 @@ This folder contains the deployment instructions for the Expense Management appl
 
 1. Infrastructure must already be deployed (see `deploy-infra/README.md`)
 2. Azure CLI installed and logged in (`az login`)
-3. The web app name from the infrastructure deployment
+3. .NET SDK installed
+4. PowerShell 7+ recommended (`winget install Microsoft.PowerShell`)
+
+## Quick Start - Automated Deployment
+
+The easiest way to deploy is using the automated deployment script:
+
+```powershell
+# Simplest: If you just ran deploy-infra/deploy.ps1, no parameters needed!
+# The script reads the .deployment-context.json file automatically
+.\deploy-app\deploy.ps1
+
+# Basic deployment with explicit resource group
+.\deploy-app\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo"
+
+# Specify web app name explicitly
+.\deploy-app\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -WebAppName "app-expensemgmt-abc123"
+
+# Skip build if already built
+.\deploy-app\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -SkipBuild
+
+# Configure app settings after deployment
+.\deploy-app\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -ConfigureSettings
+```
+
+### Seamless Deployment Flow
+
+When you run `deploy-infra/deploy.ps1`, it automatically saves deployment outputs to `.deployment-context.json` at the repository root. The app deployment script reads this context file, so you can simply run:
+
+```powershell
+# First: Deploy infrastructure
+.\deploy-infra\deploy.ps1 -ResourceGroup "rg-expensemgmt-demo" -Location "eastus2"
+
+# Then: Deploy app (no parameters needed!)
+.\deploy-app\deploy.ps1
+```
+
+The script automatically:
+
+- Reads deployment context from `.deployment-context.json` (if available)
+- Builds and publishes the .NET application
+- Creates a deployment zip package
+- Deploys to Azure App Service
+- Cleans up temporary files
 
 ## Application URL
 
 After deployment, the application is available at:
+
 - **Main UI**: `https://<your-web-app-name>.azurewebsites.net/Index`
 - **Swagger API**: `https://<your-web-app-name>.azurewebsites.net/swagger`
 
 > **Note**: Navigate to `/Index` to view the application, not just the root URL.
 
-## Deployment Steps
+## Manual Deployment Steps
+
+If you prefer to deploy manually, follow these steps:
 
 ### Step 1: Set PowerShell Variables
 

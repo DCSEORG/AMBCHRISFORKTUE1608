@@ -1,6 +1,6 @@
 The application should access all data through stored procedures rather than direct SQL queries in the application code. This provides better security, performance, and maintainability.
 
-If the database_schema.sql file already contains stored procedures, use those. Otherwise, create a stored-procedures.sql file containing all the stored procedures needed for the application's data access.
+Create a stored-procedures.sql file at the repository root containing all the stored procedures needed for the application's data access.
 
 Key requirements for stored procedures:
 
@@ -8,97 +8,8 @@ Key requirements for stored procedures:
 - Ensure every stored procedure called by the application code exists in the stored-procedures.sql file
 - The application code should never construct dynamic SQL or access tables directly
 
-The deployment script (deploy.ps1) automatically imports the stored procedures using sqlcmd with Entra ID authentication. For manual execution, use sqlcmd with --authentication-method=ActiveDirectoryDefault.
+The deployment script (deploy-infra/deploy.ps1) automatically imports the stored procedures using sqlcmd with Entra ID authentication. For manual execution, use sqlcmd with --authentication-method=ActiveDirectoryDefault.
 
 Do not use Python scripts for executing SQL against the database. The sqlcmd tool handles GO batch separators natively and is the recommended approach for all database script execution.
-Execute SQL script on Azure SQL Database using Azure Active Directory authentication
-"""
-import pyodbc
-import struct
-from azure.identity import AzureCliCredential
-
-# Database connection settings
-SERVER = "example.database.windows.net"
-DATABASE = "database_name"
-SQL_SCRIPT_FILE = "script.sql"
-
-def get_access_token():
-    """Get Azure AD access token using Azure CLI credentials"""
-    credential = AzureCliCredential()
-    token = credential.get_token("https://database.windows.net/.default")
-    return token.token
-
-def execute_sql_script(server, database, script_file):
-    """Execute SQL script using Azure AD token authentication"""
-    
-    # Get access token
-    print("Getting Azure AD access token...")
-    access_token = get_access_token()
-    
-    # Convert token to bytes for ODBC
-    token_bytes = access_token.encode("utf-16-le")
-    token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
-    
-    # Connection string with token authentication
-    connection_string = (
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={server};"
-        f"Database={database};"
-        f"Encrypt=yes;"
-        f"TrustServerCertificate=no;"
-    )
-    
-    # Specify the token as connection attribute
-    SQL_COPT_SS_ACCESS_TOKEN = 1256
-    
-    print(f"Connecting to {server}/{database}...")
-    conn = pyodbc.connect(connection_string, attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct})
-    
-    try:
-        # Read SQL script
-        print(f"Reading SQL script from {script_file}...")
-        with open(script_file, 'r') as f:
-            sql_script = f.read()
-        
-        # Split script into individual statements (by GO or semicolon)
-        statements = []
-        current_statement = []
-        
-        for line in sql_script.split('\n'):
-            line = line.strip()
-            if line.upper() == 'GO':
-                if current_statement:
-                    statements.append('\n'.join(current_statement))
-                    current_statement = []
-            elif line:
-                current_statement.append(line)
-        
-        if current_statement:
-            statements.append('\n'.join(current_statement))
-        
-        # Execute each statement
-        cursor = conn.cursor()
-        for i, statement in enumerate(statements, 1):
-            if statement.strip():
-                print(f"Executing statement {i}/{len(statements)}...")
-                try:
-                    cursor.execute(statement)
-                    conn.commit()
-                    print(f"  ✓ Statement {i} executed successfully")
-                except Exception as e:
-                    print(f"  ✗ Error executing statement {i}: {e}")
-                    raise
-        
-        print("\n✓ All SQL statements executed successfully!")
-        
-    finally:
-        conn.close()
-
-if __name__ == "__main__":
-    try:
-        execute_sql_script(SERVER, DATABASE, SQL_SCRIPT_FILE)
-    except Exception as e:
-        print(f"\n✗ Error: {e}")
-        exit(1)
 
 

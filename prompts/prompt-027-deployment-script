@@ -15,6 +15,9 @@ The deployment process should:
 9. Create the stored procedures required by the application
 10. Configure the App Service with connection strings and settings
 11. If GenAI resources were deployed, configure the OpenAI and Search endpoints
+12. Save a deployment context file (.deployment-context.json) at the repository root containing the deployed resource names and configuration values
+
+The deployment context file enables seamless handoff to the application deployment script (deploy-app/deploy.ps1) without requiring users to manually enter resource names or look up deployment outputs. Include the resource group, web app name, SQL server FQDN, and managed identity client ID in this context file.
 
 The script should provide clear progress indicators, handle errors gracefully, and display a summary of deployed resources at the end.
 

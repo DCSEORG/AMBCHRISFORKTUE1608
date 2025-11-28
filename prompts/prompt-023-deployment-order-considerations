@@ -1,25 +1,28 @@
 ## Infrastructure vs Application Deployment Separation
 
-There are two distinct deployment phases that should be documented in separate README files.
+There are two distinct deployment phases, each with its own automated PowerShell script.
 
 ### Phase 1: Infrastructure Deployment
 
-Use the automated deployment script (deploy-infra/deploy.ps1) which handles everything:
+Run the infrastructure deployment script:
 
-1. Validates Azure CLI login and retrieves user credentials automatically
-2. Creates the resource group
-3. Deploys all Bicep templates
-4. Waits for SQL Server to be ready
-5. Configures firewall rules
-6. Imports database schema and stored procedures
-7. Sets up managed identity with database permissions
-8. Configures App Service settings
+    .\deploy-infra\deploy.ps1 -ResourceGroup "rg-yourapp" -Location "eastus2"
 
-Alternatively, manual steps are documented in deploy-infra/README.md.
+This script handles everything automatically: Azure CLI validation, credential retrieval, resource group creation, Bicep deployment, SQL Server configuration, firewall rules, database schema import, stored procedures, managed identity permissions, and App Service settings.
+
+At the end, the script saves a deployment context file (.deployment-context.json) containing all the resource names and configuration values needed for the next phase.
 
 ### Phase 2: Application Deployment
 
-This is completely separate and assumes infrastructure already exists. See deploy-app/README.md for instructions on building and deploying the application code.
+After infrastructure deployment completes, run the application deployment script with no parameters:
+
+    .\deploy-app\deploy.ps1
+
+The script automatically reads the deployment context file created by the infrastructure script, so you don't need to specify the resource group or web app name. It builds the .NET application, creates a deployment package, and deploys to Azure App Service.
+
+### Seamless Deployment Flow
+
+The two scripts are designed to work together without manual parameter entry between them. The deployment context file passes resource names and configuration values from infrastructure deployment to application deployment automatically.
 
 ### Bicep Guidelines
 

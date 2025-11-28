@@ -329,6 +329,29 @@ Write-Host ""
 Write-Host "Web App URL: https://$webAppName.azurewebsites.net" -ForegroundColor Cyan
 Write-Host ""
 
+# Save deployment context for app deployment script
+$contextFile = Join-Path $repoRoot ".deployment-context.json"
+$context = @{
+    resourceGroup = $ResourceGroup
+    webAppName = $webAppName
+    sqlServerName = $sqlServerName
+    sqlServerFqdn = "$sqlServerName.database.windows.net"
+    managedIdentityName = $managedIdentityName
+    managedIdentityClientId = $managedIdentityClientId
+    deployedAt = (Get-Date).ToString("o")
+}
+
+if ($DeployGenAI) {
+    $context.openAIEndpoint = $openAIEndpoint
+    $context.openAIModelName = $openAIModelName
+    $context.searchEndpoint = $searchEndpoint
+}
+
+$context | ConvertTo-Json | Out-File -FilePath $contextFile -Encoding utf8
+Write-Host "Deployment context saved to: $contextFile" -ForegroundColor Yellow
+Write-Host "Use this with deploy-app/deploy.ps1 for application deployment." -ForegroundColor Yellow
+Write-Host ""
+
 # Output deployment values for reference
 Write-Host "To view all deployment outputs, run:" -ForegroundColor Yellow
 Write-Host "  az deployment group show --resource-group $ResourceGroup --name main --query 'properties.outputs'" -ForegroundColor Gray
