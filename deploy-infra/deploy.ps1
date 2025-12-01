@@ -58,8 +58,11 @@ param(
 # Set error preference - but we'll handle az CLI errors manually to allow warnings
 $ErrorActionPreference = "Continue"
 
-# Check PowerShell version and warn if using older version
-if ($PSVersionTable.PSVersion.Major -lt 7) {
+# Detect CI/CD environment
+$IsCI = $env:GITHUB_ACTIONS -eq "true" -or $env:TF_BUILD -eq "true" -or $env:CI -eq "true"
+
+# Check PowerShell version and warn if using older version (skip in CI)
+if (-not $IsCI -and $PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host "[WARNING] You are running PowerShell $($PSVersionTable.PSVersion). PowerShell 7+ is recommended." -ForegroundColor Yellow
     Write-Host "          Install with: winget install Microsoft.PowerShell" -ForegroundColor Yellow
     Write-Host ""
@@ -76,6 +79,9 @@ function Write-Error { param($Message) Write-Host "    [ERROR] $Message" -Foregr
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Magenta
 Write-Host "  Expense Management System Deployment" -ForegroundColor Magenta
+if ($IsCI) {
+    Write-Host "  (CI/CD Mode - OIDC Authentication)" -ForegroundColor Magenta
+}
 Write-Host "=========================================" -ForegroundColor Magenta
 Write-Host ""
 
@@ -94,16 +100,52 @@ try {
 }
 
 # Get current user's Azure AD information
-Write-Step "Getting Azure AD information"
-$adminObjectId = az ad signed-in-user show --query id -o tsv
-$adminLogin = az ad signed-in-user show --query userPrincipalName -o tsv
+Write-Step "Getting Azure AD information for SQL admin"
 
-if (-not $adminObjectId -or -not $adminLogin) {
-    Write-Error "Failed to get Azure AD user information"
-    exit 1
+# Variables for admin identity
+$adminObjectId = $null
+$adminLogin = $null
+$adminPrincipalType = "User"
+
+if ($IsCI) {
+    # CI/CD mode: Use the Service Principal from OIDC
+    $servicePrincipalClientId = $env:AZURE_CLIENT_ID
+    
+    if (-not $servicePrincipalClientId) {
+        Write-Error "AZURE_CLIENT_ID environment variable not set. Ensure azure/login action has run with OIDC."
+        exit 1
+    }
+    
+    Write-Info "CI/CD mode detected - using Service Principal as SQL admin"
+    
+    # Get the Service Principal's Object ID from its Application (Client) ID
+    $spInfo = az ad sp show --id $servicePrincipalClientId 2>$null | ConvertFrom-Json
+    
+    if (-not $spInfo) {
+        Write-Error "Failed to retrieve Service Principal information for Client ID: $servicePrincipalClientId"
+        exit 1
+    }
+    
+    $adminObjectId = $spInfo.id
+    $adminLogin = $spInfo.displayName
+    $adminPrincipalType = "Application"
+    
+    Write-Success "Service Principal Object ID: $adminObjectId"
+    Write-Success "Service Principal Name: $adminLogin"
+    Write-Info "Admin Principal Type: $adminPrincipalType"
+} else {
+    # Local mode: Use the signed-in user
+    $adminObjectId = az ad signed-in-user show --query id -o tsv
+    $adminLogin = az ad signed-in-user show --query userPrincipalName -o tsv
+    
+    if (-not $adminObjectId -or -not $adminLogin) {
+        Write-Error "Failed to get Azure AD user information"
+        exit 1
+    }
+    
+    Write-Success "Admin Object ID: $adminObjectId"
+    Write-Success "Admin Login: $adminLogin"
 }
-Write-Success "Admin Object ID: $adminObjectId"
-Write-Success "Admin Login: $adminLogin"
 
 # Create resource group
 Write-Step "Creating resource group: $ResourceGroup"
@@ -136,6 +178,7 @@ az deployment group create `
     --parameters baseName=$BaseName `
     --parameters adminObjectId=$adminObjectId `
     --parameters adminLogin=$adminLogin `
+    --parameters adminPrincipalType=$adminPrincipalType `
     --parameters deployGenAI=$deployGenAIValue `
     --output none
 

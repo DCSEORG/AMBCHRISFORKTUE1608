@@ -10,6 +10,10 @@ param adminObjectId string
 @description('The login name (UPN) of the Azure AD administrator for SQL')
 param adminLogin string
 
+@description('The type of the Azure AD administrator principal (User for interactive, Application for Service Principal)')
+@allowed(['User', 'Application'])
+param adminPrincipalType string = 'User'
+
 @description('Whether to deploy GenAI resources')
 param deployGenAI bool = false
 
@@ -41,6 +45,7 @@ module azureSQL 'modules/azure-sql.bicep' = {
     baseName: baseName
     adminObjectId: adminObjectId
     adminLogin: adminLogin
+    adminPrincipalType: adminPrincipalType
   }
 }
 

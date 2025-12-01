@@ -10,6 +10,10 @@ param adminObjectId string
 @description('The login name (UPN) of the Azure AD administrator')
 param adminLogin string
 
+@description('The type of the Azure AD administrator principal (User for interactive, Application for Service Principal)')
+@allowed(['User', 'Application'])
+param adminPrincipalType string = 'User'
+
 // Create unique but deterministic names using resource group id
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var sqlServerName = toLower('sql-${baseName}-${uniqueSuffix}')
@@ -23,7 +27,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
       administratorType: 'ActiveDirectory'
       azureADOnlyAuthentication: true
       login: adminLogin
-      principalType: 'User'
+      principalType: adminPrincipalType
       sid: adminObjectId
       tenantId: subscription().tenantId
     }
